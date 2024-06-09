@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horse Racing Data Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        form {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        label {
+            display: block;
+            margin-top: 20px;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Horse Racing Data Form</h1>
+    <form id="dataForm" onsubmit="submitData(event)">
+        <label for="paymentWallet">Payment Wallet:</label>
+        <input type="text" id="paymentWallet" name="paymentWallet" required>
+
+        <label for="payoutWallet">Payout Wallet:</label>
+        <input type="text" id="payoutWallet" name="payoutWallet" required>
+
+        <label for="txn">Transaction ID (Txn):</label>
+        <input type="text" id="txn" name="txn" required>
+
+        <label for="zedSent">Zed Sent:</label>
+        <input type="number" id="zedSent" name="zedSent" required>
+
+        <label for="numHorses">Number of Horses:</label>
+        <input type="number" id="numHorses" name="numHorses" required>
+
+        <label for="horseIds">Horse IDs (Comma Separated):</label>
+        <input type="text" id="horseIds" name="horseIds" required pattern="^(\d+)(,\d+)*$">
+
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        function submitData(event) {
+            event.preventDefault();
+
+            // Collect form data
+            const formData = new FormData(document.getElementById('dataForm'));
+            const data = {};
+            formData.forEach((value, key) => data[key] = value);
+
+            // Send data to Google Sheets
+            const scriptURL = 'YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE';
+            fetch(scriptURL, { 
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert('Data submitted successfully!');
+                document.getElementById('dataForm').reset();
+            })
+            .catch(error => {
+                alert('Error submitting data!');
+                console.error('Error:', error);
+            });
+        }
+    </script>
+
+</body>
+</html>
