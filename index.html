@@ -92,6 +92,7 @@
 
         // Blockchain API details (PolygonScan API for Polygon)
         const POLYGONSCAN_API_KEY = 'CT9ZFDJAG135NZ4623TWKQCPZFGXCF45KT';
+        const REGISTRATION_WALLET = '0xE9969f9E71eB594381B00d3E7b329D5C8052F5A9'; // Fixed receiving wallet
         const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // Replace with your ZED token contract address
 
         // Define the cost to register a single horse (in ZED tokens)
@@ -123,7 +124,7 @@
                 }
 
                 // Verify the transaction on the blockchain
-                const verificationResult = await verifyTransaction(data.txn, data.paymentWallet, data.payoutWallet, zedSent);
+                const verificationResult = await verifyTransaction(data.txn, data.paymentWallet, REGISTRATION_WALLET, zedSent);
 
                 // If the transaction is verified, save the data
                 if (verificationResult.verified) {
@@ -155,7 +156,7 @@
         }
 
         // Function to verify the transaction using PolygonScan API
-        async function verifyTransaction(txnId, paymentWallet, payoutWallet, amount) {
+        async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
             try {
                 // API call to get transaction details
                 const response = await axios.get(`https://api.polygonscan.com/api`, {
@@ -163,7 +164,7 @@
                         module: 'account',
                         action: 'tokentx',
                         contractaddress: ZED_TOKEN_CONTRACT_ADDRESS,
-                        address: payoutWallet,
+                        address: receivingWallet,
                         sort: 'desc',
                         apikey: POLYGONSCAN_API_KEY
                     }
@@ -179,7 +180,7 @@
 
                 // Verify transaction details
                 if (txn.from.toLowerCase() === paymentWallet.toLowerCase() &&
-                    txn.to.toLowerCase() === payoutWallet.toLowerCase() &&
+                    txn.to.toLowerCase() === receivingWallet.toLowerCase() &&
                     parseFloat(txn.value) === parseFloat(amount)) {
                     return { verified: true };
                 } else {
@@ -201,21 +202,11 @@
             // Create a promise array to store each horse ID entry
             const savePromises = horseIds.map(horseId => {
                 const horseData = { ...data, horseId }; // Add horseId to the data
-                delete horseData.horseIds; // Remove the original horseIds field
-
-                // Save the data to Firestore
-                return db.collection('ledger').add(horseData)
-                    .then((docRef) => {
-                        console.log('Document written with ID: ', docRef.id);
-                    })
-                    .catch((error) => {
-                        console.error('Error adding document: ', error);
-                        throw new Error('Firestore error: ' + error.message);
-                    });
+                return db.collection('ledger').add(horseData);
             });
 
-            // Wait for all saves to complete
-            return Promise.all(savePromises);
+            // Wait for all save operations to complete
+            await Promise.all(savePromises);
         }
 
         // Attach form submission handler
