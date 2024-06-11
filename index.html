@@ -76,27 +76,26 @@
     <script>
         // Your web app's Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBeNrXc0i73nsWinc9OE6a-BdlIw_1XCAM",
-            authDomain: "horse-data-8ece2.firebaseapp.com",
-            projectId: "horse-data-8ece2",
-            storageBucket: "horse-data-8ece2.appspot.com",
-            messagingSenderId: "93061557603",
-            appId: "1:93061557603:web:46c557b65ddefd6f273756",
-            measurementId: "G-PQR7KH4E3B"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const analytics = firebase.analytics();
         const db = firebase.firestore();
 
         // Blockchain API details (PolygonScan API for Polygon)
-        const POLYGONSCAN_API_KEY = 'CT9ZFDJAG135NZ4623TWKQCPZFGXCF45KT';
+        const POLYGONSCAN_API_KEY = 'YOUR_POLYGONSCAN_API_KEY';
         const REGISTRATION_WALLET = '0xE9969f9E71eB594381B00d3E7b329D5C8052F5A9'; // Fixed receiving wallet
-        const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // Replace with your ZED token contract address
+        const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // ZED token contract address
 
         // Define the cost to register a single horse (in ZED tokens)
-        const REGISTRATION_COST_PER_HORSE = 1; // Replace this with the actual cost
+        const REGISTRATION_COST_PER_HORSE = 1;
 
         // Function to handle form submission
         async function submitData(event) {
@@ -178,60 +177,4 @@
                     return { verified: false, reason: 'Transaction not found' };
                 }
 
-                // Variables to collect mismatch reasons
-                let mismatchReasons = [];
-
-                // Verify transaction details
-                if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
-                    mismatchReasons.push('Payment wallet does not match');
-                }
-                if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
-                    mismatchReasons.push('Receiving wallet does not match');
-                }
-                if (parseFloat(txn.value) !== parseFloat(amount)) {
-                    mismatchReasons.push(`Amount sent (${txn.value}) does not match the expected amount (${amount})`);
-                }
-
-                // Return detailed verification result
-                if (mismatchReasons.length === 0) {
-                    return { verified: true };
-                } else {
-                    return { verified: false, reason: mismatchReasons.join(', ') };
-                }
-            } catch (error) {
-                console.error('Error verifying transaction: ', error);
-                return { verified: false, reason: 'API error or invalid response' };
-            }
-        }
-
-        // Function to save data to Firestore in the 'ledger' collection
-        async function saveToLedger(data, verificationResult) {
-            const horseIdsArray = data.horseIds.split(',').map(id => id.trim());
-            const savePromises = horseIdsArray.map(horseId => {
-                // Prepare data to save
-                const horseData = {
-                    seriesId: data.seriesId,
-                    paymentWallet: data.paymentWallet,
-                    payoutWallet: data.payoutWallet,
-                    txn: data.txn,
-                    zedSent: data.zedSent,
-                    numHorses: data.numHorses,
-                    horseId: horseId,  // Store each horse ID individually
-                    verificationStatus: verificationResult.verified ? 'Verified' : 'Failed',
-                    verificationReason: verificationResult.verified ? '' : verificationResult.reason
-                };
-
-                // Save the data
-                return db.collection('ledger').add(horseData);
-            });
-
-            // Wait for all save operations to complete
-            await Promise.all(savePromises);
-        }
-
-        // Attach form submission handler
-        document.getElementById('dataForm').addEventListener('submit', submitData);
-    </script>
-
-</body>
-</html>
+                //
