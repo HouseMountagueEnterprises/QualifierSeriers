@@ -178,13 +178,25 @@
                     return { verified: false, reason: 'Transaction not found' };
                 }
 
+                // Variables to collect mismatch reasons
+                let mismatchReasons = [];
+
                 // Verify transaction details
-                if (txn.from.toLowerCase() === paymentWallet.toLowerCase() &&
-                    txn.to.toLowerCase() === receivingWallet.toLowerCase() &&
-                    parseFloat(txn.value) === parseFloat(amount)) {
+                if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
+                    mismatchReasons.push('Payment wallet does not match');
+                }
+                if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
+                    mismatchReasons.push('Receiving wallet does not match');
+                }
+                if (parseFloat(txn.value) !== parseFloat(amount)) {
+                    mismatchReasons.push(`Amount sent (${txn.value}) does not match the expected amount (${amount})`);
+                }
+
+                // Return detailed verification result
+                if (mismatchReasons.length === 0) {
                     return { verified: true };
                 } else {
-                    return { verified: false, reason: 'Transaction details do not match' };
+                    return { verified: false, reason: mismatchReasons.join(', ') };
                 }
             } catch (error) {
                 console.error('Error verifying transaction: ', error);
@@ -192,16 +204,24 @@
             }
         }
 
-        // Function to save verification result to Firestore
+        // Function to save data to Firestore in the 'ledger' collection
         async function saveToLedger(data, verificationResult) {
-            data.verification = verificationResult;
+            const horseIdsArray = data.horseIds.split(',').map(id => id.trim());
+            const savePromises = horseIdsArray.map(horseId => {
+                // Prepare data to save
+                const horseData = {
+                    seriesId: data.seriesId,
+                    paymentWallet: data.paymentWallet,
+                    payoutWallet: data.payoutWallet,
+                    txn: data.txn,
+                    zedSent: data.zedSent,
+                    numHorses: data.numHorses,
+                    horseId: horseId,  // Store each horse ID individually
+                    verificationStatus: verificationResult.verified ? 'Verified' : 'Failed',
+                    verificationReason: verificationResult.verified ? '' : verificationResult.reason
+                };
 
-            // Split the horse IDs into an array
-            const horseIds = data.horseIds.split(',').map(id => id.trim());
-
-            // Create a promise array to store each horse ID entry
-            const savePromises = horseIds.map(horseId => {
-                const horseData = { ...data, horseId }; // Add horseId to the data
+                // Save the data
                 return db.collection('ledger').add(horseData);
             });
 
