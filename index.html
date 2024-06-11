@@ -100,6 +100,12 @@
         function submitData(event) {
             event.preventDefault();
 
+            // Perform JavaScript validation
+            if (!validateForm()) {
+                alert('Please fill out all fields correctly.');
+                return;
+            }
+
             // Collect form data
             const formData = new FormData(document.getElementById('dataForm'));
             const data = {};
@@ -125,6 +131,24 @@
                     console.error('Error adding document: ', error);
                     alert('Error submitting data!');
                 });
+        }
+
+        // JavaScript form validation function
+        function validateForm() {
+            const paymentWallet = document.getElementById('paymentWallet').value.trim();
+            const payoutWallet = document.getElementById('payoutWallet').value.trim();
+            const txn = document.getElementById('txn').value.trim();
+            const zedSent = document.getElementById('zedSent').value.trim();
+            const numHorses = document.getElementById('numHorses').value.trim();
+            const horseIds = document.getElementById('horseIds').value.trim();
+
+            // Check if any field is empty or invalid
+            if (!paymentWallet || !payoutWallet || !txn || !zedSent || !numHorses || !horseIds) {
+                return false;
+            }
+
+            // Additional validation can be added here if needed
+            return true;
         }
 
         // Attach form submission handler
