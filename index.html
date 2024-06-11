@@ -64,9 +64,11 @@
     </form>
 
     <!-- Firebase App (the core Firebase SDK) -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-analytics.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <!-- Firebase Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-analytics-compat.js"></script>
+    <!-- Firebase Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
     <script>
         // Your web app's Firebase configuration
@@ -81,8 +83,8 @@
         };
 
         // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const analytics = firebase.analytics(app);
+        firebase.initializeApp(firebaseConfig);
+        const analytics = firebase.analytics();
         const db = firebase.firestore();
 
         // Generate a unique series ID and store it
@@ -104,7 +106,7 @@
             formData.forEach((value, key) => data[key] = value);
 
             // Add the series ID to the data
-            data.seriesId = 1;
+            data.seriesId = seriesId;
 
             // Send data to Firebase Firestore
             saveDataToFirestore(data);
