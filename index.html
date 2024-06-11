@@ -70,6 +70,9 @@
     <!-- Firebase Firestore -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
+    <!-- Include Axios for making HTTP requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
     <script>
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -87,17 +90,15 @@
         const analytics = firebase.analytics();
         const db = firebase.firestore();
 
-        // Generate a unique series ID and store it
-        const seriesId = generateSeriesId();
+        // Blockchain API details (PolygonScan API for Polygon)
+        const POLYGONSCAN_API_KEY = 'CT9ZFDJAG135NZ4623TWKQCPZFGXCF45KT';
+        const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // Replace with your ZED token contract address
 
-        // Function to generate a unique series ID
-        function generateSeriesId() {
-            // Example using current timestamp (you can replace this with any unique ID generator)
-            return 'series-' + new Date().toISOString().replace(/[-:.TZ]/g, '');
-        }
+        // Define the cost to register a single horse (in ZED tokens)
+        const REGISTRATION_COST_PER_HORSE = 10; // Replace this with the actual cost
 
         // Function to handle form submission
-        function submitData(event) {
+        async function submitData(event) {
             event.preventDefault();
 
             // Perform JavaScript validation
@@ -111,29 +112,34 @@
             const data = {};
             formData.forEach((value, key) => data[key] = value);
 
-            // Add the series ID to the data
-            data.seriesId = seriesId;
+            try {
+                // Calculate the expected total registration cost
+                const expectedCost = REGISTRATION_COST_PER_HORSE * parseInt(data.numHorses);
+                const zedSent = parseFloat(data.zedSent);
 
-            // Send data to Firebase Firestore
-            saveDataToFirestore(data);
-        }
+                if (zedSent !== expectedCost) {
+                    alert(`The amount of ZED sent (${zedSent}) does not match the expected registration cost (${expectedCost}) for ${data.numHorses} horses.`);
+                    return;
+                }
 
-        // Function to save data to Firebase Firestore
-        function saveDataToFirestore(data) {
-            // Use the 'qualifierSeriesData' collection
-            db.collection('qualifierSeriesData').add(data)
-                .then((docRef) => {
-                    console.log('Document written with ID: ', docRef.id);
-                    alert('Data submitted successfully!');
+                // Verify the transaction on the blockchain
+                const verificationResult = await verifyTransaction(data.txn, data.paymentWallet, data.payoutWallet, zedSent);
+
+                // If the transaction is verified, save the data
+                if (verificationResult.verified) {
+                    await saveToLedger(data, verificationResult);
+                    alert('Data submitted and verified successfully!');
                     document.getElementById('dataForm').reset();
-                })
-                .catch((error) => {
-                    console.error('Error adding document: ', error);
-                    alert('Error submitting data!');
-                });
+                } else {
+                    alert('Transaction verification failed: ' + verificationResult.reason);
+                }
+            } catch (error) {
+                console.error('Error verifying or saving data: ', error);
+                alert('Error verifying transaction or saving data.');
+            }
         }
 
-        // JavaScript form validation function
+        // Function to validate the form
         function validateForm() {
             const paymentWallet = document.getElementById('paymentWallet').value.trim();
             const payoutWallet = document.getElementById('payoutWallet').value.trim();
@@ -142,13 +148,74 @@
             const numHorses = document.getElementById('numHorses').value.trim();
             const horseIds = document.getElementById('horseIds').value.trim();
 
-            // Check if any field is empty or invalid
             if (!paymentWallet || !payoutWallet || !txn || !zedSent || !numHorses || !horseIds) {
                 return false;
             }
-
-            // Additional validation can be added here if needed
             return true;
+        }
+
+        // Function to verify the transaction using PolygonScan API
+        async function verifyTransaction(txnId, paymentWallet, payoutWallet, amount) {
+            try {
+                // API call to get transaction details
+                const response = await axios.get(`https://api.polygonscan.com/api`, {
+                    params: {
+                        module: 'account',
+                        action: 'tokentx',
+                        contractaddress: ZED_TOKEN_CONTRACT_ADDRESS,
+                        address: payoutWallet,
+                        sort: 'desc',
+                        apikey: POLYGONSCAN_API_KEY
+                    }
+                });
+
+                const transactions = response.data.result;
+                // Find the transaction with the matching txnId
+                const txn = transactions.find(tx => tx.hash === txnId);
+
+                if (!txn) {
+                    return { verified: false, reason: 'Transaction not found' };
+                }
+
+                // Verify transaction details
+                if (txn.from.toLowerCase() === paymentWallet.toLowerCase() &&
+                    txn.to.toLowerCase() === payoutWallet.toLowerCase() &&
+                    parseFloat(txn.value) === parseFloat(amount)) {
+                    return { verified: true };
+                } else {
+                    return { verified: false, reason: 'Transaction details do not match' };
+                }
+            } catch (error) {
+                console.error('Error verifying transaction: ', error);
+                return { verified: false, reason: 'API error or invalid response' };
+            }
+        }
+
+        // Function to save verification result to Firestore
+        async function saveToLedger(data, verificationResult) {
+            data.verification = verificationResult;
+
+            // Split the horse IDs into an array
+            const horseIds = data.horseIds.split(',').map(id => id.trim());
+
+            // Create a promise array to store each horse ID entry
+            const savePromises = horseIds.map(horseId => {
+                const horseData = { ...data, horseId }; // Add horseId to the data
+                delete horseData.horseIds; // Remove the original horseIds field
+
+                // Save the data to Firestore
+                return db.collection('ledger').add(horseData)
+                    .then((docRef) => {
+                        console.log('Document written with ID: ', docRef.id);
+                    })
+                    .catch((error) => {
+                        console.error('Error adding document: ', error);
+                        throw new Error('Firestore error: ' + error.message);
+                    });
+            });
+
+            // Wait for all saves to complete
+            return Promise.all(savePromises);
         }
 
         // Attach form submission handler
