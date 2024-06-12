@@ -195,7 +195,7 @@ async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) 
             return { verified: false, reason: 'Receiving wallet does not match' };
         }
         if (tokenValue !== amount) {
-            return { verified: false, reason: `Amount sent (${tokenValue}) does not match the expected amount (${amount})` };
+            return { verified: false, reason: `Amount sent (${tokenValue}) does not match the expected amount (${amount}) };
         }
 
         // Return detailed verification result
