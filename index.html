@@ -154,7 +154,7 @@
             return true;
         }
 
-        // Function to verify the transaction using PolygonScan API
+      // Function to verify the transaction using PolygonScan API
 async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
     try {
         // API call to get transaction details using fetch
@@ -173,11 +173,22 @@ async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) 
             return { verified: false, reason: 'Transaction not found' };
         }
 
-        // Verify transaction details...
-        // (Remaining code for verifying transaction details)
+        // Convert transaction value based on token decimals
+        const tokenValue = parseFloat(txn.value) / Math.pow(10, 18);
 
-        // Return detailed verification result...
-        // (Remaining code for returning verification result)
+        // Verify transaction details
+        if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
+            return { verified: false, reason: 'Payment wallet does not match' };
+        }
+        if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
+            return { verified: false, reason: 'Receiving wallet does not match' };
+        }
+        if (tokenValue !== amount) {
+            return { verified: false, reason: `Amount sent (${tokenValue}) does not match the expected amount (${amount})` };
+        }
+
+        // Return detailed verification result
+        return { verified: true };
     } catch (error) {
         console.error('Error verifying transaction: ', error);
         return { verified: false, reason: 'API error or invalid response' };
