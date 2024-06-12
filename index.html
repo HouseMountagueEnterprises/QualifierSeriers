@@ -70,57 +70,80 @@
     <!-- Firebase Firestore -->
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
-    <!-- Include Axios for making HTTP requests -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
-
     <script>
-        // Your web app's Firebase configuration
+        // Your web app's Firebase configuration. Replace with your Firebase project details.
         const firebaseConfig = {
-            apiKey: "AIzaSyBeNrXc0i73nsWinc9OE6a-BdlIw_1XCAM",
-            authDomain: "horse-data-8ece2.firebaseapp.com",
-            projectId: "horse-data-8ece2",
-            storageBucket: "horse-data-8ece2.appspot.com",
-            messagingSenderId: "93061557603",
-            appId: "1:93061557603:web:46c557b65ddefd6f273756",
-            measurementId: "G-PQR7KH4E3B"
+            apiKey: "your_api_key_here",
+            authDomain: "your_auth_domain_here",
+            projectId: "your_project_id_here",
+            storageBucket: "your_storage_bucket_here",
+            messagingSenderId: "your_messaging_sender_id_here",
+            appId: "your_app_id_here",
+            measurementId: "your_measurement_id_here"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase with the configuration
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const db = firebase.firestore();  // Reference to Firestore
 
-        // Blockchain API details (PolygonScan API for Polygon)
-        const POLYGONSCAN_API_KEY = 'CT9ZFDJAG135NZ4623TWKQCPZFGXCF45KT';
-        const REGISTRATION_WALLET = '0xE9969f9E71eB594381B00d3E7b329D5C8052F5A9'; // Fixed receiving wallet
+        // PolygonScan API details for verifying transactions on the Polygon network
+        const POLYGONSCAN_API_KEY = 'your_polygonscan_api_key_here';
+        const REGISTRATION_WALLET = '0xE9969f9E71eB594381B00d3E7b329D5C8052F5A9'; // The wallet that receives the payment
         const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // ZED token contract address
 
         // Define the cost to register a single horse (in ZED tokens)
         const REGISTRATION_COST_PER_HORSE = 1;
 
+        // Enable verbose debugging mode
+        const DEBUG_MODE = true;
 
-            // Collect form data
+        // Custom logging function to handle debug messages
+        function debugLog(message) {
+            if (DEBUG_MODE) {
+                console.log(message);
+            }
+        }
+
+        // Form submission handler
+        async function submitData(event) {
+            event.preventDefault();  // Prevent the form from submitting in the default way
+
+            // Validate form fields
+            if (!validateForm()) {
+                alert('Please fill out all fields correctly.');
+                return;
+            }
+
+            // Collect form data into an object
             const formData = new FormData(document.getElementById('dataForm'));
             const data = {};
             formData.forEach((value, key) => data[key] = value);
 
+            // Log the collected form data for debugging
+            debugLog(`Form data collected: ${JSON.stringify(data)}`);
+
             try {
-                // Calculate the expected total registration cost
+                // Calculate the expected total registration cost based on the number of horses
                 const expectedCost = REGISTRATION_COST_PER_HORSE * parseInt(data.numHorses);
                 const zedSent = parseFloat(data.zedSent);
 
-                /*if (zedSent !== expectedCost) {
+                // Check if the sent ZED amount matches the expected cost
+                if (zedSent !== expectedCost) {
                     alert(`The amount of ZED sent (${zedSent}) does not match the expected registration cost (${expectedCost}) for ${data.numHorses} horses.`);
                     return;
-                }*/
+                }
 
-                // Verify the transaction on the blockchain
+                // Verify the transaction details on the blockchain
                 const verificationResult = await verifyTransaction(data.txn, data.paymentWallet, REGISTRATION_WALLET, zedSent);
 
-                // If the transaction is verified, save the data
+                // Log the verification result for debugging
+                debugLog(`Verification result: ${JSON.stringify(verificationResult)}`);
+
+                // If the transaction is verified, proceed to save the data
                 if (verificationResult.verified) {
-                    await saveToLedger({ paymentWallet, payoutWallet, txn, zedSent, numHorses, horseIds }, verificationResult);
+                    await saveToLedger(data, verificationResult);
                     alert('Data submitted and verified successfully!');
-                    document.getElementById('dataForm').reset();
+                    document.getElementById('dataForm').reset();  // Reset the form fields
                 } else {
                     alert('Transaction verification failed: ' + verificationResult.reason);
                 }
@@ -130,82 +153,97 @@
             }
         }
 
-              // Validate form data
-            const formData = new FormData(document.getElementById('dataForm'));
-            const data = {
-                paymentWallet: formData.get('paymentWallet'),
-                payoutWallet: formData.get('payoutWallet'),
-                txn: formData.get('txn'),
-                zedSent: parseFloat(formData.get('zedSent')),
-                numHorses: parseInt(formData.get('numHorses')),
-                horseIds: formData.get('horseIds').split(',').map(id => parseInt(id.trim()))
-            };
+        // Validate the form data before submission
+        function validateForm() {
+            const paymentWallet = document.getElementById('paymentWallet').value.trim();
+            const payoutWallet = document.getElementById('payoutWallet').value.trim();
+            const txn = document.getElementById('txn').value.trim();
+            const zedSent = document.getElementById('zedSent').value.trim();
+            const numHorses = document.getElementById('numHorses').value.trim();
+            const horseIds = document.getElementById('horseIds').value.trim();
 
-            // Save data to ledger
+            // Log the form field values for debugging
+            debugLog(`Validating form: paymentWallet=${paymentWallet}, payoutWallet=${payoutWallet}, txn=${txn}, zedSent=${zedSent}, numHorses=${numHorses}, horseIds=${horseIds}`);
+
+            // Check if all required fields are filled out
+            return paymentWallet && payoutWallet && txn && zedSent && numHorses && horseIds;
+        }
+
+        // Verify the transaction using the PolygonScan API
+        async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
             try {
-                await saveToLedger(data);
-                alert('Data submitted and saved successfully!');
-                document.getElementById('dataForm').reset();
+                // Log the transaction details being verified
+                debugLog(`Verifying transaction: txnId=${txnId}, paymentWallet=${paymentWallet}, receivingWallet=${receivingWallet}, amount=${amount}`);
+
+                // Fetch transaction details from the PolygonScan API
+                const response = await fetch(`https://api.polygonscan.com/api?module=account&action=tokentx&contractaddress=${ZED_TOKEN_CONTRACT_ADDRESS}&address=${receivingWallet}&sort=desc&apikey=${POLYGONSCAN_API_KEY}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch transaction data');
+                }
+
+                // Parse the response data
+                const data = await response.json();
+                const transactions = data.result;
+
+                // Log the fetched transactions for debugging
+                debugLog(`Fetched transactions: ${JSON.stringify(transactions)}`);
+
+                // Find the specific transaction by ID
+                const txn = transactions.find(tx => tx.hash === txnId);
+
+                if (!txn) {
+                    return { verified: false, reason: 'Transaction not found' };
+                }
+
+                // Convert the transaction value based on token decimals
+                const tokenValue = parseFloat(txn.value) / Math.pow(10, 18);
+
+                // Verify the details of the transaction
+                if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
+                    return { verified: false, reason: 'Payment wallet does not match' };
+                }
+                if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
+                    return { verified: false, reason: 'Receiving wallet does not match' };
+                }
+                if (tokenValue !== amount) {
+                    return { verified: false, reason: `Amount sent (${tokenValue}) does not match the expected amount (${amount})` };
+                }
+
+                // Return a successful verification result
+                return { verified: true };
+            } catch (error) {
+                console.error('Error verifying transaction: ', error);
+                return { verified: false, reason: 'API error or invalid response' };
+            }
+        }
+
+        // Save the verified data to the Firestore ledger collection
+        async function saveToLedger(data, verificationResult) {
+            try {
+                // Log the data to be saved for debugging
+                debugLog(`Saving data to ledger: ${JSON.stringify(data)}`);
+
+                // Get or create the 'ledger' collection
+                const ledgerCollection = db.collection('ledger');
+
+                // Save the data with the transaction ID as the document ID
+                await ledgerCollection.doc(data.txn).set({
+                    paymentWallet: data.paymentWallet,
+                    payoutWallet: data.payoutWallet,
+                    txn: data.txn,
+                    zedSent: parseFloat(data.zedSent),
+                    numHorses: parseInt(data.numHorses),
+                    horseIds: data.horseIds.split(',').map(id => parseInt(id)),
+                    verificationResult: verificationResult,
+                    timestamp: new Date()  // Record the current time as a timestamp
+                });
+
+                debugLog('Data saved successfully.');
             } catch (error) {
                 console.error('Error saving data to ledger: ', error);
-                alert('Error saving data. Please try again later.');
+                alert('Failed to save data to ledger.');
             }
         }
-
-        // Function to save data to ledger collection
-        async function saveToLedger(data) {
-            // Check if ledger collection exists, if not, create it
-            const ledgerRef = db.collection('ledger');
-            const doc = await ledgerRef.doc();
-            if (!(await doc.get()).exists) {
-                await doc.set({}); // Create the document to automatically create the collection
-            }
-
-            // Save data to ledger collection
-            await db.collection('ledger').add(data);
-        }
-
-      // Function to verify the transaction using PolygonScan API
-async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
-    try {
-        // API call to get transaction details using fetch
-        const response = await fetch(`https://api.polygonscan.com/api?module=account&action=tokentx&contractaddress=${ZED_TOKEN_CONTRACT_ADDRESS}&address=${receivingWallet}&sort=desc&apikey=${POLYGONSCAN_API_KEY}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch transaction data');
-        }
-        
-        const data = await response.json();
-        const transactions = data.result;
-
-        // Find the transaction with the matching txnId
-        const txn = transactions.find(tx => tx.hash === txnId);
-
-        if (!txn) {
-            return { verified: false, reason: 'Transaction not found' };
-        }
-
-        // Convert transaction value based on token decimals
-        const tokenValue = parseFloat(txn.value) / Math.pow(10, 18);
-
-        // Verify transaction details
-        if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
-            return { verified: false, reason: 'Payment wallet does not match' };
-        }
-        if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
-            return { verified: false, reason: 'Receiving wallet does not match' };
-        }
-        if (tokenValue !== amount) {
-            return { verified: false, reason: `Amount sent (${tokenValue}) does not match the expected amount (${amount})' };
-        }
-
-        // Return detailed verification result
-        return { verified: true };
-    } catch (error) {
-        console.error('Error verifying transaction: ', error);
-        return { verified: false, reason: 'API error or invalid response' };
-    }
-}
-
     </script>
 </body>
 </html>
