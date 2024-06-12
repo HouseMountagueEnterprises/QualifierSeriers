@@ -108,10 +108,10 @@
                 const expectedCost = REGISTRATION_COST_PER_HORSE * parseInt(data.numHorses);
                 const zedSent = parseFloat(data.zedSent);
 
-                if (zedSent !== expectedCost) {
+                /*if (zedSent !== expectedCost) {
                     alert(`The amount of ZED sent (${zedSent}) does not match the expected registration cost (${expectedCost}) for ${data.numHorses} horses.`);
                     return;
-                }
+                }*/
 
                 // Verify the transaction on the blockchain
                 const verificationResult = await verifyTransaction(data.txn, data.paymentWallet, REGISTRATION_WALLET, zedSent);
