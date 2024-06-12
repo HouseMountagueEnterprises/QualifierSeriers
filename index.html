@@ -71,18 +71,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
     <!-- Include Axios for making HTTP requests -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
 
     <script>
         // Your web app's Firebase configuration
         const firebaseConfig = {
-             apiKey: "AIzaSyBeNrXc0i73nsWinc9OE6a-BdlIw_1XCAM",
-            authDomain: "horse-data-8ece2.firebaseapp.com",
-            projectId: "horse-data-8ece2",
-            storageBucket: "horse-data-8ece2.appspot.com",
-            messagingSenderId: "93061557603",
-            appId: "1:93061557603:web:46c557b65ddefd6f273756",
-            measurementId: "G-PQR7KH4E3B"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
         };
 
         // Initialize Firebase
@@ -90,7 +90,7 @@
         const db = firebase.firestore();
 
         // Blockchain API details (PolygonScan API for Polygon)
-        const POLYGONSCAN_API_KEY = 'CT9ZFDJAG135NZ4623TWKQCPZFGXCF45KT';
+        const POLYGONSCAN_API_KEY = 'YOUR_POLYGONSCAN_API_KEY';
         const REGISTRATION_WALLET = '0xE9969f9E71eB594381B00d3E7b329D5C8052F5A9'; // Fixed receiving wallet
         const ZED_TOKEN_CONTRACT_ADDRESS = '0x5eC03C1f7fA7FF05EC476d19e34A22eDDb48ACdc'; // ZED token contract address
 
@@ -127,7 +127,7 @@
 
                 // If the transaction is verified, save the data
                 if (verificationResult.verified) {
-                    await saveToLedger(data, verificationResult);
+                    await saveToLedger({ paymentWallet, payoutWallet, txn, zedSent, numHorses, horseIds }, verificationResult);
                     alert('Data submitted and verified successfully!');
                     document.getElementById('dataForm').reset();
                 } else {
@@ -155,44 +155,45 @@
         }
 
         // Function to verify the transaction using PolygonScan API
-async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
-    try {
-        // API call to get transaction details using fetch
-        const response = await fetch(`https://api.polygonscan.com/api?module=account&action=tokentx&contractaddress=${ZED_TOKEN_CONTRACT_ADDRESS}&address=${receivingWallet}&sort=desc&apikey=${POLYGONSCAN_API_KEY}`);
-        const data = await response.json();
+        async function verifyTransaction(txnId, paymentWallet, receivingWallet, amount) {
+            try {
+                // API call to get transaction details using fetch
+                const response = await fetch(`https://api.polygonscan.com/api?module=account&action=tokentx&contractaddress=${ZED_TOKEN_CONTRACT_ADDRESS}&address=${receivingWallet}&sort=desc&apikey=${POLYGONSCAN_API_KEY}`);
+                const data = await response.json();
 
-        const transactions = data.result;
-        // Find the transaction with the matching txnId
-        const txn = transactions.find(tx => tx.hash === txnId);
+                const transactions = data.result;
+                // Find the transaction with the matching txnId
+                const txn = transactions.find(tx => tx.hash === txnId);
 
-        if (!txn) {
-            return { verified: false, reason: 'Transaction not found' };
+                               if (!txn) {
+                    return { verified: false, reason: 'Transaction not found' };
+                }
+
+                // Variables to collect mismatch reasons
+                let mismatchReasons = [];
+
+                // Verify transaction details
+                if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
+                    mismatchReasons.push('Payment wallet does not match');
+                }
+                if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
+                    mismatchReasons.push('Receiving wallet does not match');
+                }
+                if (parseFloat(txn.value) !== parseFloat(amount)) {
+                    mismatchReasons.push(`Amount sent (${txn.value}) does not match the expected amount (${amount})`);
+                }
+
+                // Return detailed verification result
+                if (mismatchReasons.length === 0) {
+                    return { verified: true };
+                } else {
+                    return { verified: false, reason: mismatchReasons.join(', ') };
+                }
+            } catch (error) {
+                console.error('Error verifying transaction: ', error);
+                return { verified: false, reason: 'API error or invalid response' };
+            }
         }
-
-        // Variables to collect mismatch reasons
-        let mismatchReasons = [];
-
-        // Verify transaction details
-        if (txn.from.toLowerCase() !== paymentWallet.toLowerCase()) {
-            mismatchReasons.push('Payment wallet does not match');
-        }
-        if (txn.to.toLowerCase() !== receivingWallet.toLowerCase()) {
-            mismatchReasons.push('Receiving wallet does not match');
-        }
-        if (parseFloat(txn.value) !== parseFloat(amount)) {
-            mismatchReasons.push(`Amount sent (${txn.value}) does not match the expected amount (${amount})`);
-        }
-
-        // Return detailed verification result
-        if (mismatchReasons.length === 0) {
-            return { verified: true };
-        } else {
-            return { verified: false, reason: mismatchReasons.join(', ') };
-        }
-    } catch (error) {
-        console.error('Error verifying transaction: ', error);
-        return { verified: false, reason: 'API error or invalid response' };
-    }
-}
-
-                //
+    </script>
+</body>
+</html>
