@@ -97,30 +97,6 @@
         // Define the cost to register a single horse (in ZED tokens)
         const REGISTRATION_COST_PER_HORSE = 1;
 
-        // Function to create the ledger collection if it does not exist
-        async function createLedgerCollectionIfNotExists() {
-        const ledgerRef = db.collection('ledger');
-        const doc = await ledgerRef.doc(); // Create a reference to a non-existing document
-        try {
-            await doc.set({}); // Try setting data to the non-existing document
-            await doc.delete(); // Delete the document after creation
-            console.log('Ledger collection already exists or created successfully.');
-            } catch (error) {
-        console.error('Error creating ledger collection:', error);
-    }
-}
-
-// Call the function to create the ledger collection
-createLedgerCollectionIfNotExists();
-        // Function to handle form submission
-        async function submitData(event) {
-            event.preventDefault();
-
-            // Perform JavaScript validation
-            if (!validateForm()) {
-                alert('Please fill out all fields correctly.');
-                return;
-            }
 
             // Collect form data
             const formData = new FormData(document.getElementById('dataForm'));
@@ -154,19 +130,39 @@ createLedgerCollectionIfNotExists();
             }
         }
 
-        // Function to validate the form
-        function validateForm() {
-            const paymentWallet = document.getElementById('paymentWallet').value.trim();
-            const payoutWallet = document.getElementById('payoutWallet').value.trim();
-            const txn = document.getElementById('txn').value.trim();
-            const zedSent = document.getElementById('zedSent').value.trim();
-            const numHorses = document.getElementById('numHorses').value.trim();
-            const horseIds = document.getElementById('horseIds').value.trim();
+              // Validate form data
+            const formData = new FormData(document.getElementById('dataForm'));
+            const data = {
+                paymentWallet: formData.get('paymentWallet'),
+                payoutWallet: formData.get('payoutWallet'),
+                txn: formData.get('txn'),
+                zedSent: parseFloat(formData.get('zedSent')),
+                numHorses: parseInt(formData.get('numHorses')),
+                horseIds: formData.get('horseIds').split(',').map(id => parseInt(id.trim()))
+            };
 
-            if (!paymentWallet || !payoutWallet || !txn || !zedSent || !numHorses || !horseIds) {
-                return false;
+            // Save data to ledger
+            try {
+                await saveToLedger(data);
+                alert('Data submitted and saved successfully!');
+                document.getElementById('dataForm').reset();
+            } catch (error) {
+                console.error('Error saving data to ledger: ', error);
+                alert('Error saving data. Please try again later.');
             }
-            return true;
+        }
+
+        // Function to save data to ledger collection
+        async function saveToLedger(data) {
+            // Check if ledger collection exists, if not, create it
+            const ledgerRef = db.collection('ledger');
+            const doc = await ledgerRef.doc();
+            if (!(await doc.get()).exists) {
+                await doc.set({}); // Create the document to automatically create the collection
+            }
+
+            // Save data to ledger collection
+            await db.collection('ledger').add(data);
         }
 
       // Function to verify the transaction using PolygonScan API
